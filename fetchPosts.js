@@ -59,7 +59,9 @@ async function fetchPosts(keyword, date, hour) {
         const formattedPosts = posts.posts.map(post => ({
             text: post.record.text,
             author: post.author.handle,
-            timestamp: post.indexedAt
+            timestamp: post.indexedAt,
+            uri: post.uri,
+            cid: post.cid
         }));
 
         // Save each post to its own file
