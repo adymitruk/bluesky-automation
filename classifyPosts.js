@@ -99,9 +99,16 @@ async function main() {
         }
 
         const selected = options[choice];
+        const baseDir = path.join('posts', selected.keyword, selected.date, selected.hour);
         
+        // Create on-topic and off-topic directories
+        const onTopicDir = path.join(baseDir, 'on-topic');
+        const offTopicDir = path.join(baseDir, 'off-topic');
+        fs.mkdirSync(onTopicDir, { recursive: true });
+        fs.mkdirSync(offTopicDir, { recursive: true });
+
         // Find JSON files in the directory
-        const files = fs.readdirSync(path.join('posts', selected.keyword, selected.date, selected.hour))
+        const files = fs.readdirSync(baseDir)
             .filter(file => file.endsWith('.json'));
 
         if (files.length === 0) {
@@ -111,16 +118,26 @@ async function main() {
 
         // Read and combine all posts from JSON files
         const allPosts = [];
+        const fileMapping = new Map(); // Keep track of which file each post came from
+        
         for (const file of files) {
-            const filePath = path.join('posts', selected.keyword, selected.date, selected.hour, file);
+            const filePath = path.join(baseDir, file);
             const fileContent = fs.readFileSync(filePath, 'utf8');
             const postData = JSON.parse(fileContent);
+            
             if (Array.isArray(postData)) {
-                allPosts.push(...postData);
+                postData.forEach(post => {
+                    allPosts.push(post);
+                    fileMapping.set(allPosts.length - 1, file);
+                });
             } else if (postData.posts) {
-                allPosts.push(...postData.posts);
+                postData.posts.forEach(post => {
+                    allPosts.push(post);
+                    fileMapping.set(allPosts.length - 1, file);
+                });
             } else {
                 allPosts.push(postData);
+                fileMapping.set(allPosts.length - 1, file);
             }
         }
 
@@ -132,11 +149,20 @@ async function main() {
         console.log('\nClassifying posts...');
         const classifications = await classifyPosts(allPosts.map(p => p.text), openai);
 
-        console.log('\nResults:');
+        console.log('\nMoving files to appropriate folders...');
         allPosts.forEach((post, index) => {
+            const sourceFile = fileMapping.get(index);
+            const sourcePath = path.join(baseDir, sourceFile);
+            const targetDir = classifications[index] ? onTopicDir : offTopicDir;
+            const targetPath = path.join(targetDir, sourceFile);
+
+            // Move the file to the appropriate directory
+            fs.renameSync(sourcePath, targetPath);
+
             console.log(`\nPost ${index + 1}:`);
             console.log(`Text: ${post.text}`);
             console.log(`Programming-related: ${classifications[index]}`);
+            console.log(`Moved to: ${classifications[index] ? 'on-topic' : 'off-topic'}`);
             console.log('---');
         });
 
