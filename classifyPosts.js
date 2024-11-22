@@ -46,7 +46,7 @@ async function classifyPosts(posts, openai) {
                 messages: [
                     {
                         role: "system",
-                        content: systemPrompt + " Return a JSON object with numeric keys (0-9) mapping to boolean values, where true means programming-related and false means not programming-related.",
+                        content: systemPrompt + " Return a JSON object with numeric keys (0-9) mapping to boolean values, where true means programming-related and false means not programming-related. The word programming is in the text. If the word's context has to do with television programming, radio, music, mind control programming, political and politics it is a false. a mention of programming languages, procedures, algorithms, coding, system architecture or computer science is true.",
                     },
                     {
                         role: "user",
