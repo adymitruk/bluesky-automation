@@ -120,6 +120,7 @@ async function main() {
         const likedDir = path.join(path.dirname(onTopicDir), 'liked');
         fs.mkdirSync(likedDir, { recursive: true });
 
+        console.log(`Processing posts in ${onTopicDir}`);
         // Find JSON files in the on-topic directory
         const files = fs.readdirSync(onTopicDir)
             .filter(file => file.endsWith('.json'));
@@ -134,7 +135,8 @@ async function main() {
         console.log('\nProcessing posts...');
         for (const file of files) {
             const filePath = path.join(onTopicDir, file);
-            const fileContent = fs.readFileSync(filePath, 'utf8');
+            console.log(`Processing post ${file}`);
+            const fileContent = fs.readFileSync(fs.readlinkSync(filePath), 'utf8');
             const post = JSON.parse(fileContent);
 
             // check if the post has already been liked or failed

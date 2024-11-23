@@ -155,9 +155,11 @@ async function main() {
             const sourcePath = path.join(baseDir, sourceFile);
             const targetDir = classifications[index] ? onTopicDir : offTopicDir;
             const targetPath = path.join(targetDir, sourceFile);
+            // make the target directory if it doesn't exist
+            fs.mkdirSync(targetDir, { recursive: true });
 
-            // Move the file to the appropriate directory
-            fs.renameSync(sourcePath, targetPath);
+            // make a symlink to the source file in the target directory
+            fs.symlinkSync(sourcePath, targetPath);
 
             console.log(`\nPost ${index + 1}:`);
             console.log(`Text: ${post.text}`);
