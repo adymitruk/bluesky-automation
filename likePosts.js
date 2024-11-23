@@ -138,10 +138,13 @@ async function main() {
             const post = JSON.parse(fileContent);
 
             // check if the post has already been liked or failed
-            const likedFilePath = path.join(likedDir, file.replace('.json', '') + '_' + new Date().toISOString() + '.json');
-            const failedFilePath = path.join(failedDir, file.replace('.json', '') + '_' + new Date().toISOString() + '.json');
-            if (fs.existsSync(likedFilePath) || fs.existsSync(failedFilePath)) {
-                console.log(`Post ${file} already liked or failed`);    
+            const baseFileName = file.split('_').slice(0, 2).join('_');  // Get first 2 elements like post_0035
+            const likedFiles = fs.readdirSync(likedDir);
+            const failedFiles = fs.readdirSync(failedDir);
+            
+            // Check if any files in liked or failed directories start with the base name
+            if (likedFiles.some(f => f.startsWith(baseFileName)) || failedFiles.some(f => f.startsWith(baseFileName))) {
+                console.log(`Post ${file} already liked or failed`);
                 continue;
             }
 
