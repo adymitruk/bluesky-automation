@@ -5,6 +5,61 @@ const path = require('path');
 const cache_path = `${process.env.HOME}/.cache/bluesky_cache`;
 const limit = 3;
 
+function getCurrentDateAndHour() {
+    const now = new Date();
+    now.setHours(now.getHours() - 1);
+    const date = now.toISOString().split('T')[0];
+    const hour = now.getUTCHours().toString().padStart(2, '0');
+    return { date, hour };
+}
+
+async function fetchPostBatch(token, keyword, startTime, endTime, cursor = null) {
+    console.log(`Fetching batch: keyword: ${keyword}, startTime: ${startTime}, endTime: ${endTime}`);
+    try {
+        const response = await axios.get('https://bsky.social/xrpc/app.bsky.feed.searchPosts', {
+            headers: {
+            'Authorization': `Bearer ${token}`
+        },
+        params: {
+            q: `${keyword} since:${startTime} until:${endTime}`,
+            limit: 100,
+            cursor: cursor
+            }
+            });
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching posts:', error.response?.data || error.message);
+        return null;
+    }
+}
+
+async function fetchAllPosts(token, keyword, startTime, endTime) {
+    console.log(`Fetching all posts: keyword: ${keyword}, startTime: ${startTime}, endTime: ${endTime}`);
+    let allPosts = [];
+    let cursor = null;
+    let hasMore = true;
+
+    while (hasMore) {
+        console.log(`Fetching batch${cursor ? ` (cursor: ${cursor})` : ''}...`);
+        const batchData = await fetchPostBatch(token, keyword, startTime, endTime, cursor);
+        
+        if (batchData.posts && batchData.posts.length > 0) {
+            allPosts = allPosts.concat(batchData.posts);
+            cursor = batchData.cursor;
+            hasMore = !!cursor;
+            
+            if (hasMore) {
+                // Wait 5 seconds before next request
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+        } else {
+            hasMore = false;
+        }
+    }
+    console.log(`Found ${allPosts.length} posts`);
+    return { posts: allPosts };
+}
+
 async function fetchPosts(keyword, date, hour) {
     try {
         // create the cache directory if it doesn't exist
@@ -14,10 +69,23 @@ async function fetchPosts(keyword, date, hour) {
         const tokenData = JSON.parse(fs.readFileSync('bluesky_token.json', 'utf8'));
         const token = tokenData.token;
 
-        // If parameters are not provided, prompt for them
+        // If keyword is not provided, prompt for it
         keyword = keyword || prompt('Enter keyword to search: ');
-        date = date || prompt('Enter date (YYYY-MM-DD): ');
-        hour = hour || prompt('Enter hour (00-23): ');
+
+        // If date or hour is not provided, ask if user wants current hour
+        if (!date || !hour) {
+            const useCurrentTime = prompt('Do you want to fetch posts from the most recent hour? (y/n): ').toLowerCase();
+            
+            if (useCurrentTime === 'y') {
+                const current = getCurrentDateAndHour();
+                date = current.date;
+                hour = current.hour;
+                console.log(`Using current date: ${date} and hour: ${hour}`);
+            } else {
+                date = date || prompt('Enter date (YYYY-MM-DD): ');
+                hour = hour || prompt('Enter hour (00-23): ');
+            }
+        }
 
         // Pad hour with leading zero if needed
         hour = hour.toString().padStart(2, '0');
@@ -41,16 +109,7 @@ async function fetchPosts(keyword, date, hour) {
             posts = JSON.parse(fs.readFileSync(cacheFilePath, 'utf8'));
         } else {
             // Make the API request to Bluesky with date range parameters
-            const response = await axios.get('https://bsky.social/xrpc/app.bsky.feed.searchPosts', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                params: {
-                    q: `${keyword} since:${startTime} until:${endTime}`,
-                    limit: 100
-                }
-            });
-            posts = response.data;
+            posts = await fetchAllPosts(token, keyword, startTime, endTime);
             // store the response in a cache file under the key of the keyword, date, and hour
             fs.writeFileSync(cacheFilePath, JSON.stringify(posts, null, 2));
         }   
