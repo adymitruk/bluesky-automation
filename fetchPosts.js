@@ -3,7 +3,7 @@ const prompt = require('prompt-sync')({ sigint: true });
 const fs = require('fs');
 const path = require('path');
 const cache_path = `${process.env.HOME}/.cache/bluesky_cache`;
-const limit = 3;
+const limit = 100;
 
 function getCurrentDateAndHour() {
     const now = new Date();
@@ -21,11 +21,11 @@ async function fetchPostBatch(token, keyword, startTime, endTime, cursor = null)
             'Authorization': `Bearer ${token}`
         },
         params: {
-            q: `${keyword} since:${startTime} until:${endTime}`,
-            limit: 100,
-            cursor: cursor
+                q: `${keyword} since:${startTime} until:${endTime}`,
+                limit: limit,
+                cursor: cursor
             }
-            });
+        });
         return response.data;
     } catch (error) {
         console.error('Error fetching posts:', error.response?.data || error.message);
